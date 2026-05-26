@@ -1,0 +1,8 @@
+{
+  "document_text": "In early 2024, BCG collaborated with a multinational healthcare provider to redesign patient scheduling operations across 42 outpatient clinics in Southeast Asia. The initiative introduced predictive scheduling algorithms intended to reduce appointment bottlenecks and improve physician utilization rates. Over a seven-month pilot, average patient wait times declined by 21%, while appointment no-show rates decreased from 14% to 9%. The deployment included integration with electronic medical record systems and multilingual patient communication tools. More than 850 administrative staff members completed operational readiness training before the new scheduling environment went live. According to BCG's implementation review, clinics participating in the program handled approximately 1.8 million patient appointments during the pilot phase. Leadership teams also reported improved visibility into staffing allocation trends during peak demand periods. Following the pilot's completion, the healthcare provider approved a broader rollout covering an additional 65 facilities scheduled for deployment later in 2024.",
+  "question": "What outcomes were achieved during the healthcare scheduling pilot?",
+  "ai_answer": "The pilot reduced patient wait times by 21%, lowered appointment no-show rates from 14% to 9%, and supported approximately 1.8 million patient appointments across 42 clinics.",
+  "ground_truth_label": "FAITHFUL",
+  "hallucinated_spans": [],
+  "explanation": "The answer faithfully reflects the document's reported outcomes, including the 21% reduction in wait times, the decline in no-show rates from 14% to 9%, and the handling of 1.8 million appointments."
+}

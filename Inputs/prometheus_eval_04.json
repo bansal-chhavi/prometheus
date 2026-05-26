@@ -1,0 +1,8 @@
+{
+  "document_text": "In 2023, BCG advised a telecommunications operator on a customer retention transformation initiative targeting enterprise accounts across Latin America. The project introduced AI-assisted churn prediction models and automated customer engagement workflows covering more than 96,000 enterprise contracts. During the first eight months of implementation, the operator reduced enterprise customer churn by 13% and increased renewal conversion rates by 18%. The transformation program also shortened escalation resolution time from four business days to under thirty hours. BCG consultants worked alongside regional sales teams and customer support leaders to standardize account management processes across six countries. More than 1,100 employees completed operational transition workshops before the new workflows were deployed. According to BCG's engagement summary, the initiative generated measurable improvements in customer satisfaction scores and stabilized recurring revenue performance during a period of increased market competition.",
+  "question": "How did the telecommunications retention initiative improve customer operations?",
+  "ai_answer": "The initiative reduced enterprise customer churn by 13%, increased renewal conversion rates by 18%, and shortened escalation resolution time from four business days to under thirty hours.",
+  "ground_truth_label": "FAITHFUL",
+  "hallucinated_spans": [],
+  "explanation": "The answer fully matches the document's reported outcomes, including reduced churn, improved renewal conversion rates, and faster escalation resolution times."
+}

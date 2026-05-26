@@ -1,0 +1,8 @@
+{
+  "document_text": "BCG supported a global manufacturing company in 2021 with the deployment of an industrial analytics platform designed to improve predictive maintenance operations across multiple production facilities. The engagement covered 27 factories located in the United States, Mexico, and Canada. Sensor data from more than 14,000 production assets was integrated into a centralized monitoring environment that enabled maintenance teams to identify equipment anomalies before major failures occurred. According to project metrics collected during the first year of operation, unplanned equipment downtime decreased by 19%, while maintenance planning accuracy improved by 26%. The implementation also reduced average incident response time from six hours to less than two hours. Approximately 2,300 operational employees participated in technical onboarding workshops during the rollout. BCG's final performance review concluded that the deployment contributed to measurable increases in production continuity and reduced operational disruption across participating facilities.",
+  "question": "What operational benefits resulted from the predictive maintenance deployment?",
+  "ai_answer": "The deployment reduced unplanned equipment downtime by 19%, improved maintenance planning accuracy by 26%, and reduced average incident response time from six hours to less than two hours.",
+  "ground_truth_label": "FAITHFUL",
+  "hallucinated_spans": [],
+  "explanation": "The answer accurately summarizes the operational improvements documented in the source passage, including downtime reduction, planning accuracy improvements, and faster incident response times."
+}

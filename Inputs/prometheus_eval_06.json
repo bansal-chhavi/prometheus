@@ -1,0 +1,10 @@
+{
+  "document_text": "In 2021, BCG partnered with a national retail pharmacy chain to modernize inventory replenishment operations across 5,400 stores in the United States. The engagement implemented predictive demand planning models and automated supplier coordination workflows intended to reduce medication stock shortages. According to quarterly operational reports, inventory stockout incidents declined by 22% during the first year of deployment. The system also reduced replenishment planning time from twelve hours to approximately three hours per cycle. More than 4,800 pharmacy operations employees completed workflow transition training before nationwide rollout began. BCG analysts reported that the modernization effort processed over 88 million inventory records each month and significantly improved forecasting consistency during seasonal demand spikes. The pharmacy chain later expanded the engagement to include vaccine inventory coordination and regional distribution optimization capabilities.",
+  "question": "What improvements were achieved through the pharmacy inventory modernization initiative?",
+  "ai_answer": "The initiative reduced inventory stockout incidents by 22% and shortened replenishment planning time from twelve hours to approximately five hours per cycle.",
+  "ground_truth_label": "HALLUCINATION",
+  "hallucinated_spans": [
+    "five hours"
+  ],
+  "explanation": "The document states that replenishment planning time was reduced from twelve hours to approximately three hours per cycle, not five hours. The stockout reduction figure is correctly supported."
+}
