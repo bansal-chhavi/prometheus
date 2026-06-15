@@ -4,7 +4,8 @@ Core evaluation engine: LLM-based claim extraction, evidence matching, hallucina
 import json
 import re
 from typing import Tuple
-from src.config import get_llm_config
+from src.config import get_llm_config, get_nli_config
+from src.nli_client import NLIClient
 
 
 class Evaluator:
@@ -16,6 +17,11 @@ class Evaluator:
         """Initialize evaluator with LLM configuration."""
         self.llm_config = get_llm_config()
         self.client = self._init_llm_client()
+        # NLI client for claim-document entailment checks (Hugging Face DeBERTa, Groq fallback)
+        try:
+            self.nli = NLIClient()
+        except Exception:
+            self.nli = None
     
     def _init_llm_client(self):
         """Initialize appropriate LLM client based on configuration."""
@@ -73,6 +79,27 @@ Return ONLY valid JSON array format like: ["claim 1", "claim 2", "claim 3"]"""
         Returns:
             Tuple of (is_supported: bool, evidence_excerpt: str)
         """
+        # Prefer NLI-based approach when available
+        if self.nli is not None:
+            try:
+                # For each document chunk, run NLI (premise=document, hypothesis=claim)
+                best_score = 0.0
+                best_label = ""
+                best_doc = ""
+                for doc in documents:
+                    label, score = self.nli.predict(claim, doc)
+                    if score > best_score:
+                        best_score = score
+                        best_label = label
+                        best_doc = doc
+
+                is_supported = self.nli.is_entailment(best_label, best_score)
+                evidence = best_doc if is_supported else ""
+                return (is_supported, evidence)
+            except Exception as e:
+                print(f"NLI check failed, falling back to LLM: {e}")
+
+        # Fallback to LLM-based check (existing behaviour)
         doc_text = "\n\n".join([f"[Doc {i+1}] {doc}" for i, doc in enumerate(documents)])
         
         prompt = f"""Given the following claim and source documents, determine if the claim is 
