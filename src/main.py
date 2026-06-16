@@ -44,9 +44,13 @@ def init_components():
     global evaluator, explainer
     try:
         evaluator = Evaluator()
-        explainer = Explainer()
-    except ValueError as e:
-        print(f"Configuration error: {e}")
+        try:
+            explainer = Explainer()
+        except Exception as e:
+            print(f"Warning: Explainer not initialized - {e}. Will use simple explanations.")
+            explainer = None
+    except Exception as e:
+        print(f"Error initializing components: {e}")
         raise
 
 
@@ -55,8 +59,9 @@ async def startup():
     """Initialize components on startup."""
     try:
         init_components()
-    except ValueError as e:
-        print(f"Warning: LLM not configured - {e}. Configure environment variables to use the service.")
+        print("✅ Evaluator initialized (NLI-based evaluation enabled)")
+    except Exception as e:
+        print(f"⚠️  Error during initialization: {e}")
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -97,10 +102,10 @@ async def evaluate_knowledge_task(request: KnowledgeTask) -> TrustSignal:
         HTTPException: 422 if input validation fails, 500 if LLM call fails
     """
     try:
-        if not evaluator or not explainer:
+        if not evaluator:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="LLM not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY"
+                detail="Evaluator not configured"
             )
         
         # Extract source texts and build document list
@@ -115,30 +120,53 @@ async def evaluate_knowledge_task(request: KnowledgeTask) -> TrustSignal:
         
         config = get_evaluation_config()
         
-        # Extract claims from answer
-        claims = evaluator.extract_claims(request.rag_answer)
-        if not claims:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Could not extract claims from answer"
+        # Use NLI-based evaluation (no LLM required for claim extraction)
+        try:
+            support_map, hallucinated_spans = evaluator.evaluate_segments_nli(
+                request.rag_answer, preprocessed_docs
             )
-        
-        # Match each claim to evidence
-        support_map = {}
-        evidence_spans = []
-        
-        for claim in claims:
-            is_supported, evidence = evaluator.match_claim_to_evidence(
-                claim, preprocessed_docs
-            )
-            support_map[claim] = is_supported
-            if is_supported and evidence:
-                evidence_spans.append(evidence)
-        
-        # Detect hallucinated spans
-        hallucinated_spans = evaluator.detect_hallucinations(
-            request.rag_answer, claims, support_map
-        )
+            # Segments are the "claims" in this flow
+            claims = list(support_map.keys())
+            # Evidence spans are segments that were supported
+            evidence_spans = [
+                segment for segment, is_supported in support_map.items()
+                if is_supported
+            ]
+        except RuntimeError as e:
+            # Fall back to LLM-based extraction if NLI not configured
+            if "NLI client not configured" in str(e):
+                try:
+                    claims = evaluator.extract_claims(request.rag_answer)
+                    if not claims:
+                        raise HTTPException(
+                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="Could not extract claims from answer"
+                        )
+                    
+                    support_map = {}
+                    evidence_spans = []
+                    
+                    for claim in claims:
+                        is_supported, evidence = evaluator.match_claim_to_evidence(
+                            claim, preprocessed_docs
+                        )
+                        support_map[claim] = is_supported
+                        if is_supported and evidence:
+                            evidence_spans.append(evidence)
+                    
+                    hallucinated_spans = evaluator.detect_hallucinations(
+                        request.rag_answer, claims, support_map
+                    )
+                except ValueError:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="LLM not configured and NLI not available. Set OPENAI_API_KEY or configure NLI."
+                    )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Evaluation failed: {str(e)}"
+                )
         
         # Compute faithfulness score
         faithfulness_score = scorer.compute_faithfulness_score(claims, support_map)
@@ -148,14 +176,22 @@ async def evaluate_knowledge_task(request: KnowledgeTask) -> TrustSignal:
         if len(hallucinated_spans) > 0:
             flags.append("UNSUPPORTED")
         
-        # Generate explanation
-        explanation = explainer.generate_explanation(
-            request.query,
-            request.rag_answer,
-            claims,
-            support_map,
-            hallucinated_spans
-        )
+        # Generate explanation (use explainer if available, else provide simple narrative)
+        if explainer:
+            explanation = explainer.generate_explanation(
+                request.query,
+                request.rag_answer,
+                claims,
+                support_map,
+                hallucinated_spans
+            )
+        else:
+            # Simple explanation based on NLI results
+            supported_count = sum(1 for s in support_map.values() if s)
+            total_count = len(support_map)
+            explanation = f"NLI Evaluation: {supported_count}/{total_count} segments supported by sources."
+            if hallucinated_spans:
+                explanation += f" Unsupported: {', '.join(hallucinated_spans[:3])}"
         
         # Build TrustSignal response
         details = TrustSignalDetails(
@@ -202,10 +238,10 @@ async def evaluate_legacy(request: EvaluationRequest) -> EvaluationResponse:
         EvaluationResponse with score, label, hallucinated_spans, evidence_spans, explanation
     """
     try:
-        if not evaluator or not explainer:
+        if not evaluator:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="LLM not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY"
+                detail="Evaluator not configured"
             )
         
         # Preprocess inputs
@@ -218,30 +254,51 @@ async def evaluate_legacy(request: EvaluationRequest) -> EvaluationResponse:
         
         config = get_evaluation_config()
         
-        # Extract claims from answer
-        claims = evaluator.extract_claims(request.answer)
-        if not claims:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Could not extract claims from answer"
+        # Use NLI-based evaluation (no LLM required for claim extraction)
+        try:
+            support_map, hallucinated_spans = evaluator.evaluate_segments_nli(
+                request.answer, preprocessed_docs
             )
-        
-        # Match each claim to evidence
-        support_map = {}
-        evidence_spans = []
-        
-        for claim in claims:
-            is_supported, evidence = evaluator.match_claim_to_evidence(
-                claim, preprocessed_docs
-            )
-            support_map[claim] = is_supported
-            if is_supported and evidence:
-                evidence_spans.append(evidence)
-        
-        # Detect hallucinated spans
-        hallucinated_spans = evaluator.detect_hallucinations(
-            request.answer, claims, support_map
-        )
+            claims = list(support_map.keys())
+            evidence_spans = [
+                segment for segment, is_supported in support_map.items()
+                if is_supported
+            ]
+        except RuntimeError as e:
+            # Fall back to LLM-based extraction if NLI not configured
+            if "NLI client not configured" in str(e):
+                try:
+                    claims = evaluator.extract_claims(request.answer)
+                    if not claims:
+                        raise HTTPException(
+                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="Could not extract claims from answer"
+                        )
+                    
+                    support_map = {}
+                    evidence_spans = []
+                    
+                    for claim in claims:
+                        is_supported, evidence = evaluator.match_claim_to_evidence(
+                            claim, preprocessed_docs
+                        )
+                        support_map[claim] = is_supported
+                        if is_supported and evidence:
+                            evidence_spans.append(evidence)
+                    
+                    hallucinated_spans = evaluator.detect_hallucinations(
+                        request.answer, claims, support_map
+                    )
+                except ValueError:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="LLM not configured and NLI not available. Set OPENAI_API_KEY or configure NLI."
+                    )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Evaluation failed: {str(e)}"
+                )
         
         # Compute faithfulness score
         faithfulness_score = scorer.compute_faithfulness_score(claims, support_map)
@@ -252,14 +309,22 @@ async def evaluate_legacy(request: EvaluationRequest) -> EvaluationResponse:
             threshold=config["faithfulness_threshold"]
         )
         
-        # Generate explanation
-        explanation = explainer.generate_explanation(
-            request.query,
-            request.answer,
-            claims,
-            support_map,
-            hallucinated_spans
-        )
+        # Generate explanation (use explainer if available)
+        if explainer:
+            explanation = explainer.generate_explanation(
+                request.query,
+                request.answer,
+                claims,
+                support_map,
+                hallucinated_spans
+            )
+        else:
+            # Simple explanation based on NLI results
+            supported_count = sum(1 for s in support_map.values() if s)
+            total_count = len(support_map)
+            explanation = f"NLI Evaluation: {supported_count}/{total_count} segments supported by sources."
+            if hallucinated_spans:
+                explanation += f" Unsupported: {', '.join(hallucinated_spans[:3])}"
         
         return EvaluationResponse(
             score=faithfulness_score,

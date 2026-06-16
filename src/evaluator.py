@@ -14,14 +14,24 @@ class Evaluator:
     """
     
     def __init__(self):
-        """Initialize evaluator with LLM configuration."""
+        """Initialize evaluator with optional LLM and NLI configuration."""
         self.llm_config = get_llm_config()
-        self.client = self._init_llm_client()
-        # NLI client for claim-document entailment checks (Hugging Face DeBERTa, Groq fallback)
+        self.client = None
+        self.nli = None
+        
+        # Try to initialize LLM (optional)
+        try:
+            api_key = self.llm_config.get("api_key", "")
+            if api_key:  # Only initialize if API key is set
+                self.client = self._init_llm_client()
+        except Exception as e:
+            print(f"LLM client initialization skipped: {e}")
+        
+        # Try to initialize NLI client for claim-document entailment checks
         try:
             self.nli = NLIClient()
-        except Exception:
-            self.nli = None
+        except Exception as e:
+            print(f"NLI client initialization warning: {e}")
     
     def _init_llm_client(self):
         """Initialize appropriate LLM client based on configuration."""
@@ -50,7 +60,13 @@ class Evaluator:
             
         Returns:
             List of atomic claims extracted from the answer
+            
+        Raises:
+            RuntimeError: If LLM client not configured
         """
+        if not self.client:
+            raise RuntimeError("LLM client not configured. Cannot extract claims without LLM.")
+        
         prompt = f"""Decompose the following answer into atomic factual claims. Each claim should be a single, 
 verifiable statement. Return as a JSON array of strings.
 
@@ -247,3 +263,73 @@ Return ONLY valid JSON, no other text."""
         except (json.JSONDecodeError, AttributeError):
             pass
         return {}
+
+    def evaluate_segments_nli(self, answer: str, documents: list[str]) -> Tuple[dict, list[str]]:
+        """
+        Evaluate answer using NLI directly on sentence segments (No LLM required).
+        
+        Splits answer into sentences, checks each against documents using NLI,
+        and identifies hallucinated spans.
+        
+        Args:
+            answer: The RAG-generated answer text
+            documents: List of source document chunks
+            
+        Returns:
+            Tuple of (support_map dict, hallucinated_spans list)
+        """
+        if not self.nli:
+            raise RuntimeError("NLI client not configured")
+        
+        # Split answer into sentences
+        segments = self._split_into_sentences(answer)
+        if not segments:
+            segments = [answer]
+        
+        support_map = {}
+        hallucinated_spans = []
+        
+        # Check each segment against documents using NLI
+        for segment in segments:
+            segment = segment.strip()
+            if not segment:
+                continue
+            
+            best_label = "NEUTRAL"
+            best_score = 0.0
+            
+            # Check against each document
+            for doc in documents:
+                try:
+                    label, score = self.nli.predict(segment, doc)
+                    if score > best_score:
+                        best_score = score
+                        best_label = label
+                except Exception as e:
+                    print(f"NLI check failed for segment: {e}")
+                    continue
+            
+            is_supported = self.nli.is_entailment(best_label, best_score)
+            support_map[segment] = is_supported
+            
+            # Track unsupported segments as hallucinations
+            if not is_supported:
+                hallucinated_spans.append(segment)
+        
+        return support_map, hallucinated_spans
+    
+    def _split_into_sentences(self, text: str) -> list[str]:
+        """
+        Split text into sentences using simple heuristics.
+        
+        Args:
+            text: Text to split
+            
+        Returns:
+            List of sentences
+        """
+        # Simple sentence splitting on . ! ? followed by space or end of string
+        sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+        # Filter out empty sentences
+        sentences = [s.strip() for s in sentences if s.strip()]
+        return sentences

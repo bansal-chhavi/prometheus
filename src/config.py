@@ -11,20 +11,26 @@ def get_llm_config() -> Dict[str, Any]:
     """
     Load LLM configuration from environment variables.
     
+    Returns an empty dict if no API key is configured (NLI-only mode).
+    
     Returns:
-        Dictionary with LLM provider details
+        Dictionary with LLM provider details, or empty dict if not configured
     """
     provider = os.getenv("LLM_PROVIDER", "openai").lower()
     model = os.getenv("LLM_MODEL", "gpt-4")
     
     if provider == "anthropic":
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY not set in environment")
+        api_key = os.getenv("ANTHROPIC_API_KEY", "")
     else:
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY not set in environment")
+        api_key = os.getenv("OPENAI_API_KEY", "")
+    
+    # Return empty config if no API key (NLI-only mode is OK)
+    if not api_key:
+        return {
+            "provider": provider,
+            "model": model,
+            "api_key": ""
+        }
     
     return {
         "provider": provider,
