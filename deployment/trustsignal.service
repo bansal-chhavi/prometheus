@@ -1,0 +1,17 @@
+[Unit]
+Description=TrustSignal FastAPI service
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/trustsignal
+# Use absolute path to python in your environment
+ExecStart=/usr/bin/python3 -m uvicorn src.trustsignal.api:app --host 0.0.0.0 --port 8000 --workers 1
+Restart=on-failure
+RestartSec=5s
+KillSignal=SIGTERM
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target
