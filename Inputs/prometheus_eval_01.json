@@ -1,8 +1,0 @@
-{
-  "document_text": "BCG partnered with a European banking consortium in 2022 to modernize fraud detection systems using machine learning-based transaction analysis. The engagement covered 11 retail banking institutions operating across Germany, France, and the Netherlands. During the first six months of deployment, the new monitoring framework analyzed approximately 620 million transactions and reduced false-positive fraud alerts by 28%. The platform also improved investigation response times by 35%, enabling compliance teams to review suspicious activity more efficiently. BCG's implementation team integrated the detection engine with existing customer verification systems and anti-money laundering workflows. More than 1,400 fraud analysts participated in training sessions delivered during the rollout period. According to the final assessment report, participating banks experienced measurable improvements in operational efficiency without increasing regulatory escalations. The consortium later expanded the engagement to include real-time payment monitoring capabilities and cross-border anomaly detection support for high-risk transaction categories.",
-  "question": "How did the fraud detection modernization project improve banking operations?",
-  "ai_answer": "The modernization project reduced false-positive fraud alerts by 28% and improved investigation response times by 35% while analyzing approximately 620 million transactions.",
-  "ground_truth_label": "FAITHFUL",
-  "hallucinated_spans": [],
-  "explanation": "The answer correctly summarizes the operational improvements stated in the document, including the 28% reduction in false positives and the 35% improvement in response times across 620 million analyzed transactions."
-}
